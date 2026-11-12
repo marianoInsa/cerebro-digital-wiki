@@ -4,8 +4,6 @@ configuration:
   pageTitleSuffix: ""
   enableSPA: true
   enablePopovers: true
-  analytics:
-    provider: plausible
   locale: en-US
   baseUrl: cerebro-digital-wiki.marianoinsaurralde5.workers.dev
   ignorePatterns:
