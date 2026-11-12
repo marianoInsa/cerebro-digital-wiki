@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: wiki-deploy
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -31,15 +31,11 @@ jobs:
           token: ${{ secrets.VAULT_READ_TOKEN }}
           path: content
           fetch-depth: 0
+          filter: blob:none
 
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npx quartz plugin install --from-config
       - run: npx quartz build -d content
-
-      # shortcut: PDFs/PPTX quedan fuera del sitio y sus enlaces dan 404.
-      # Cuando importe, agregar redirects a GitHub o mover los archivos a R2.
-      - name: Drop PDFs and PPTX
-        run: find public -type f \( -iname '*.pdf' -o -iname '*.pptx' -o -iname '*.ppt' \) -delete
 
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v4
