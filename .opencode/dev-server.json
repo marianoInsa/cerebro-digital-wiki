@@ -1,0 +1,8 @@
+{
+  "name": "quartz",
+  "port": 8080,
+  "healthPath": "/",
+  "command": "node",
+  "args": ["scripts/serve.mjs", "--port", "{port}"],
+  "startTimeoutSec": 30
+}

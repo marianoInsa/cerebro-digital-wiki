@@ -4,7 +4,7 @@ configuration:
   pageTitleSuffix: ""
   enableSPA: true
   enablePopovers: true
-  locale: en-US
+  locale: es-ES
   baseUrl: cerebro-digital-wiki.marianoinsaurralde5.workers.dev
   ignorePatterns:
     - private
@@ -12,6 +12,8 @@ configuration:
     - .obsidian
     - .opencode
     - _backups
+    - hooks
+    - exports
     # shortcut: PDFs/PPTX excluidos; sus enlaces dan 404 hasta redirects/R2.
     - "**/*.pdf"
     - "**/*.pptx"
@@ -21,30 +23,30 @@ configuration:
     fontOrigin: googleFonts
     cdnCaching: true
     typography:
-      header: Schibsted Grotesk
-      body: Source Sans Pro
+      header: Archivo
+      body: Literata
       code: IBM Plex Mono
     colors:
       lightMode:
-        light: "#faf8f8"
-        lightgray: "#e5e5e5"
-        gray: "#b8b8b8"
-        darkgray: "#4e4e4e"
-        dark: "#2b2b2b"
-        secondary: "#284b63"
-        tertiary: "#84a59d"
-        highlight: rgba(143, 159, 169, 0.15)
-        textHighlight: "#fff23688"
+        light: "#E9E7E1"
+        lightgray: "#DFDDD5"
+        gray: "#7E7B72"
+        darkgray: "#2C3133"
+        dark: "#17191A"
+        secondary: "#7A2E28"
+        tertiary: "#3F4F56"
+        highlight: "rgba(122, 46, 40, 0.08)"
+        textHighlight: "#7A2E2822"
       darkMode:
-        light: "#161618"
-        lightgray: "#393639"
-        gray: "#646464"
-        darkgray: "#d4d4d4"
-        dark: "#ebebec"
-        secondary: "#7b97aa"
-        tertiary: "#84a59d"
-        highlight: rgba(143, 159, 169, 0.15)
-        textHighlight: "#b3aa0288"
+        light: "#101214"
+        lightgray: "#181B1D"
+        gray: "#6E7175"
+        darkgray: "#C4C2B8"
+        dark: "#E4E1D8"
+        secondary: "#D06A4F"
+        tertiary: "#7E929B"
+        highlight: "rgba(208, 106, 79, 0.12)"
+        textHighlight: "#D06A4F22"
 plugins:
   - source: "@quartz-community/created-modified-date"
     enabled: true
@@ -84,6 +86,8 @@ plugins:
     order: 40
   - source: "@quartz-community/table-of-contents"
     enabled: true
+    options:
+      layout: legacy
     order: 50
     layout:
       position: right
@@ -114,9 +118,15 @@ plugins:
     enabled: false
     order: 92
   - source: "@quartz-community/quartz-fonts"
-    enabled: true
+    enabled: false
+    options:
+      fontOrigin: googleFonts
+      useThemeFonts: false
+      header: Archivo
+      body: Literata
+      code: IBM Plex Mono
   - source: "@quartz-themes/core"
-    enabled: true
+    enabled: false
     options:
       theme: default
       mode: both
@@ -148,8 +158,8 @@ plugins:
   - source: "@quartz-community/content-index"
     enabled: true
     options:
-      enableSiteMap: true
-      enableRSS: true
+      enableSiteMap: false
+      enableRSS: false
   - source: "@quartz-community/favicon"
     enabled: true
   - source: "@quartz-community/og-image"
@@ -161,29 +171,18 @@ plugins:
   - source: "@quartz-community/content-page"
     enabled: true
   - source: "@quartz-community/folder-page"
-    enabled: true
+    enabled: false
   - source: "@quartz-community/tag-page"
     enabled: true
-  - source: "@quartz-community/explorer"
-    enabled: true
-    layout:
-      position: left
-      priority: 50
   - source: "@quartz-community/graph"
-    enabled: true
+    enabled: false
     layout:
       position: right
       priority: 10
-  - source: "@quartz-community/search"
-    enabled: true
-    layout:
-      position: left
-      priority: 20
-      group: toolbar
-      groupOptions:
-        grow: true
   - source: "@quartz-community/backlinks"
     enabled: true
+    options:
+      hideWhenEmpty: true
     layout:
       position: right
       priority: 50
@@ -192,8 +191,12 @@ plugins:
     layout:
       position: beforeBody
       priority: 10
+      condition: not-index
   - source: "@quartz-community/content-meta"
     enabled: true
+    options:
+      showReadingTime: true
+      showComma: false
     layout:
       position: beforeBody
       priority: 20
@@ -214,13 +217,17 @@ plugins:
       priority: 30
       group: toolbar
   - source: "@quartz-community/reader-mode"
-    enabled: true
+    enabled: false
     layout:
       position: left
       priority: 35
       group: toolbar
   - source: "@quartz-community/breadcrumbs"
     enabled: true
+    options:
+      rootName: Inicio
+      spacerSymbol: "›"
+      showCurrentPage: true
     layout:
       position: beforeBody
       priority: 5
@@ -234,16 +241,25 @@ plugins:
       position: afterBody
       priority: 10
   - source: "@quartz-community/footer"
-    enabled: true
+    enabled: false
     options:
-      links:
-        GitHub: https://github.com/jackyzha0/quartz
-        Discord Community: https://discord.gg/cRFFHYye7t
+      links: {}
     layout:
       position: footer
       priority: 50
   - source: "@quartz-community/recent-notes"
     enabled: false
+    options:
+      title: Notas recientes
+      limit: 5
+      linkToMore: false
+      showTags: false
+      hideTagPages: true
+      hideFolderPages: true
+    layout:
+      position: afterBody
+      priority: 80
+      condition: index-only
   - source: "@quartz-community/spacer"
     enabled: true
     options: {}
@@ -265,7 +281,7 @@ plugins:
         - tags
         - aliases
       excludedProperties: []
-      hidePropertiesView: false
+      hidePropertiesView: true
       delimiters: ---
       language: yaml
     order: 5
@@ -288,19 +304,35 @@ layout:
       gap: 0.5rem
   byPageType:
     "404":
+      template: default
+      exclude:
+        - explorer
+        - graph
+        - reader-mode
+        - backlinks
+        - table-of-contents
+        - breadcrumbs
+        - article-title
+        - content-meta
+        - note-properties
+        - recent-notes
       positions:
         beforeBody: []
-        left: []
         right: []
+        afterBody: []
     content: {}
     folder:
       exclude:
         - reader-mode
+        - content-meta
+        - graph
+        - recent-notes
       positions:
         right: []
     tag:
       exclude:
         - reader-mode
+        - graph
       positions:
         right: []
     canvas: {}

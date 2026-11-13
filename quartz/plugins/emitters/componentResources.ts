@@ -337,13 +337,45 @@ export const ComponentResources: QuartzEmitterPlugin = () => {
         (c) => !componentResources.componentCssStrings.has(c),
       )
 
-      // Core CSS: theme + fonts + global CSS + base styles (no per-component CSS)
+      // Core CSS: theme + fonts + global CSS + base styles + component styles.
+      // Component CSS is bundled into the core stylesheet to avoid dozens of
+      // render-blocking requests on every page. Cascade order is preserved:
+      // theme/fonts -> global -> base -> components -> custom.
+      const lightningTargets = {
+        safari: (15 << 16) | (6 << 8), // 15.6
+        ios_saf: (15 << 16) | (6 << 8), // 15.6
+        edge: 115 << 16,
+        firefox: 102 << 16,
+        chrome: 109 << 16,
+      }
+
+      const componentCss = [...componentResources.componentCssStrings].filter(
+        (css) => css.trim().length > 0,
+      )
+      const inlineCssResources = resources.css.filter((resource) => resource.inline ?? false)
+      const inlineCss = inlineCssResources
+        .map((resource) => {
+          try {
+            return transform({
+              filename: "plugin-resource.css",
+              code: Buffer.from(resource.content),
+              minify: true,
+              targets: lightningTargets,
+              include: Features.MediaQueries,
+            }).code.toString()
+          } catch {
+            return resource.content
+          }
+        })
+        .filter((css) => css.trim().length > 0)
       const quartzBase = joinStyles(
         ctx.cfg.configuration.theme,
         googleFontsStyleSheet,
         ...globalCss,
         baseStyles,
+        ...componentCss,
       )
+      ctx.bundledCssContents = new Set(inlineCss)
       const stylesheet = `@layer quartz-base {\n${quartzBase}\n}\n${customStyles}`
 
       const prescript = await joinScripts(componentResources.beforeDOMLoaded)
@@ -388,82 +420,23 @@ export const ComponentResources: QuartzEmitterPlugin = () => {
           .join("\n")
       }
 
-      const lightningTargets = {
-        safari: (15 << 16) | (6 << 8), // 15.6
-        ios_saf: (15 << 16) | (6 << 8), // 15.6
-        edge: 115 << 16,
-        firefox: 102 << 16,
-        chrome: 109 << 16,
-      }
-
-      const cssContent = transform({
-        filename: "index.css",
-        code: Buffer.from(stylesheet),
-        minify: true,
-        targets: lightningTargets,
-        include: Features.MediaQueries,
-      }).code.toString()
-
-      const cssStringToFilename = new Map<string, string>()
-      for (const cssString of componentResources.componentCssStrings) {
-        if (cssStringToFilename.has(cssString)) continue
-
-        const wrapped = `@layer quartz-base {\n${cssString}\n}`
-        const minified = transform({
-          filename: "component.css",
-          code: Buffer.from(wrapped),
+      const cssContent = [
+        transform({
+          filename: "index.css",
+          code: Buffer.from(stylesheet),
           minify: true,
           targets: lightningTargets,
           include: Features.MediaQueries,
-        }).code.toString()
+        }).code.toString(),
+        ...inlineCss,
+      ].join("\n")
 
-        const hash = hashContent(minified)
-        const slug = `component-${hash}`
-        const filename = `${slug}.css`
-        cssStringToFilename.set(cssString, filename)
+      // Component CSS is already bundled into index.css above.
+      ctx.componentCssMap = new Map()
 
-        yield write({
-          ctx,
-          slug: slug as FullSlug,
-          ext: ".css",
-          content: minified,
-        })
-      }
-
-      ctx.componentCssMap = cssStringToFilename
-
-      // Extract inline CSS/JS from plugin externalResources() into external files.
-      // This prevents large inline payloads (e.g. theme CSS) from being duplicated
-      // into every HTML page's <head>.
+      // Extract inline JS from plugin externalResources() into external files.
+      // Inline CSS is already bundled into index.css above.
       const extractedInlineResources = new Map<string, string>()
-      for (const cssResource of resources.css) {
-        if (!(cssResource.inline ?? false)) continue
-
-        let output: string
-        try {
-          output = transform({
-            filename: "plugin-resource.css",
-            code: Buffer.from(cssResource.content),
-            minify: true,
-            targets: lightningTargets,
-            include: Features.MediaQueries,
-          }).code.toString()
-        } catch {
-          output = cssResource.content
-        }
-
-        const hash = hashContent(output)
-        const slug = `static/resource-style-${hash}`
-        const filename = `${slug}.css`
-        extractedInlineResources.set(cssResource.content, filename)
-
-        yield write({
-          ctx,
-          slug: slug as FullSlug,
-          ext: ".css",
-          content: output,
-        })
-      }
 
       for (const jsResource of resources.js) {
         if (jsResource.contentType !== "inline") continue

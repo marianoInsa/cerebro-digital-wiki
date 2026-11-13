@@ -51,12 +51,15 @@ export function pageResources(
   }
 
   const extracted = ctx?.extractedInlineResources
-  const resolvedCss: CSSResource[] = staticResources.css.map((resource) => {
-    if (!(resource.inline ?? false) || !extracted) return resource
-    const filename = extracted.get(resource.content)
-    if (!filename) return resource
-    return { content: joinSegments(baseDir, filename) }
-  })
+  const bundledCss = ctx?.bundledCssContents
+  const resolvedCss: CSSResource[] = staticResources.css
+    .filter((resource) => !(resource.inline && bundledCss?.has(resource.content)))
+    .map((resource) => {
+      if (!(resource.inline ?? false) || !extracted) return resource
+      const filename = extracted.get(resource.content)
+      if (!filename) return resource
+      return { content: joinSegments(baseDir, filename) }
+    })
 
   const resolvedJs: JSResource[] = staticResources.js.map((resource) => {
     if (resource.contentType !== "inline" || !extracted) return resource
@@ -72,7 +75,19 @@ export function pageResources(
   })
 
   const contentIndexPath = joinSegments(baseDir, "static/contentIndex.json")
-  const contentIndexScript = `const fetchData = fetch("${contentIndexPath}").then(data => data.json())`
+  // Lazy thenable: the index is fetched only when search or the explorer asks
+  // for it (first interaction), never on initial page load.
+  const contentIndexScript = `
+let __contentIndexPromise = null
+const __loadContentIndex = () => {
+  if (!__contentIndexPromise) __contentIndexPromise = fetch("${contentIndexPath}").then((response) => response.json())
+  return __contentIndexPromise
+}
+const fetchData = {
+  then(onFulfilled, onRejected) { return __loadContentIndex().then(onFulfilled, onRejected) },
+  catch(onRejected) { return __loadContentIndex().catch(onRejected) },
+  finally(onFinally) { return __loadContentIndex().finally(onFinally) },
+}`
 
   const resources: StaticResources = {
     css: [
@@ -347,6 +362,9 @@ export function renderPage(
     <html lang={lang} dir={direction}>
       <Head {...componentData} />
       <body data-slug={slug} data-basepath={basePath}>
+        <a class="skip-link" href="#main-content">
+          Saltar al contenido
+        </a>
         {frame.css && <style dangerouslySetInnerHTML={{ __html: frame.css }} />}
         <div id="quartz-root" class="page" data-frame={frame.name}>
           <Body {...componentData}>
@@ -372,5 +390,19 @@ export function renderPage(
     </html>
   )
 
-  return "<!DOCTYPE html>\n" + render(doc)
+  let html = render(doc)
+  const pageTitle = (html.match(/<title>(.*?)<\/title>/s)?.[1] ?? "Sin título").trim()
+  let h1Seen = 0
+  html = html.replace(/<h1(\s[^>]*)?>([\s\S]*?)<\/h1>/g, (match, attributes, content) => {
+    h1Seen++
+    return h1Seen === 1 ? match : `<h2${attributes ?? ""}>${content}</h2>`
+  })
+  if (h1Seen === 0) {
+    const fallback = `<h1 class="visually-hidden">${pageTitle}</h1>`
+    html = html.includes("</main>")
+      ? html.replace("</main>", `${fallback}</main>`)
+      : html.replace("</body>", `${fallback}</body>`)
+  }
+
+  return "<!DOCTYPE html>\n" + html
 }

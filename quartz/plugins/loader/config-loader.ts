@@ -247,6 +247,13 @@ async function getManifest(source: PluginSource): Promise<PluginManifest | null>
 
 export async function loadQuartzConfig(
   configOverrides?: Partial<GlobalConfiguration>,
+  layoutExtender?: (layout: {
+    defaults: Partial<FullPageLayout>
+    byPageType: Record<string, Partial<FullPageLayout>>
+  }) => {
+    defaults: Partial<FullPageLayout>
+    byPageType: Record<string, Partial<FullPageLayout>>
+  },
 ): Promise<QuartzConfig> {
   const json = readPluginsJson()
 
@@ -492,16 +499,20 @@ export async function loadQuartzConfig(
 
   // Import built-in plugins
   const builtinPlugins = await import("../index")
-  const builtinTransformers: unknown[] = []
+  const builtinTransformers: unknown[] = [builtinPlugins.CerebroTransform()]
   const builtinEmitters = [
     builtinPlugins.ComponentResources(),
     builtinPlugins.Assets(),
     builtinPlugins.Static(),
+    builtinPlugins.CerebroDeploy(),
   ]
-  const builtinPageTypes = [builtinPlugins.PageTypes.NotFoundPageType()]
+  const builtinPageTypes = [
+    builtinPlugins.PageTypes.NotFoundPageType(),
+    builtinPlugins.PageTypes.CerebroFolderPage(),
+  ]
 
   const plugins: PluginTypes = {
-    transformers: [...builtinTransformers, ...(await instantiate(transformers, "transformer"))],
+    transformers: [...(await instantiate(transformers, "transformer")), ...builtinTransformers],
     filters: await instantiate(filters, "filter"),
     emitters: [...builtinEmitters, ...(await instantiate(emitters, "emitter"))],
     pageTypes: [...(await instantiate(pageTypes, "pageType")), ...builtinPageTypes],
@@ -509,7 +520,8 @@ export async function loadQuartzConfig(
 
   // Load layout and add PageTypeDispatcher to emitters.
   // This must happen after plugin instantiation so the component registry is populated.
-  const layout = await loadQuartzLayout()
+  let layout = await loadQuartzLayout()
+  if (layoutExtender) layout = layoutExtender(layout)
   plugins.emitters.push(
     builtinPlugins.PageTypes.PageTypeDispatcher({
       defaults: layout.defaults,

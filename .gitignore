@@ -10,7 +10,13 @@ private/
 .replit
 replit.nix
 .quartz/
+.tmp/
+.playwright-mcp/
+/.opencode/runtime/
 quartz/cli/tui/dist/
 .turbo/
 /content/
 /.wrangler/
+
+__pycache__/
+*.pyc

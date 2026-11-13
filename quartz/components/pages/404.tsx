@@ -1,49 +1,52 @@
 import { i18n } from "../../i18n"
+import { resolveRelative, type FullSlug } from "../../util/path"
 import { QuartzComponent, QuartzComponentConstructor, QuartzComponentProps } from "../types"
 
 const NotFound: QuartzComponent = ({ cfg, ctx }: QuartzComponentProps) => {
-  const url = new URL(`https://${cfg.baseUrl ?? "example.com"}`)
-  const baseDir = ctx.argv.serve ? "/" : url.pathname
+  const root = new URL(`https://${cfg.baseUrl ?? "example.com"}`)
+  const baseDir = ctx.argv.serve ? "/" : root.pathname
+  const collections = (ctx.trie?.children ?? [])
+    .filter((node) => node.isFolder && node.slugSegment !== "tags")
+    .map((node) => ({
+      title: node.displayName,
+      slug: node.slug,
+    }))
 
   return (
-    <article class="popover-hint">
-      <h1>404</h1>
+    <article class="popover-hint not-found">
+      <p class="not-found-code">404</p>
+      <h1>{i18n(cfg.locale).pages.error.title}</h1>
       <p>{i18n(cfg.locale).pages.error.notFound}</p>
-      <a href={baseDir}>{i18n(cfg.locale).pages.error.home}</a>
+      <button type="button" class="not-found-search" data-open-search>
+        Buscar en el archivo
+      </button>
+      {collections.length > 0 ? (
+        <nav class="not-found-collections" aria-label="Colecciones">
+          <h2>Colecciones</h2>
+          <ul>
+            {collections.map((collection) => (
+              <li>
+                <a href={resolveRelative("404" as FullSlug, collection.slug as FullSlug)}>
+                  {collection.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
+      <a class="not-found-home" href={baseDir}>
+        {i18n(cfg.locale).pages.error.home}
+      </a>
       <script
         dangerouslySetInnerHTML={{
           __html: `
-          if (typeof fetchData !== "undefined") {
-            fetchData.then(function(index) {
-              var basePath = document.body.dataset.basepath || "";
-              if (basePath.length > 1 && basePath.endsWith("/")) {
-                basePath = basePath.slice(0, -1);
-              }
-              var pathname = window.location.pathname;
-              var hasBasePrefix = basePath.length > 1 && pathname.startsWith(basePath);
-              if (hasBasePrefix) {
-                pathname = pathname.slice(basePath.length);
-              }
-              if (pathname.startsWith("/")) {
-                pathname = pathname.slice(1);
-              }
-              if (pathname.endsWith("/")) {
-                pathname = pathname.slice(0, -1);
-              }
-              if (pathname.endsWith(".html")) {
-                pathname = pathname.slice(0, -5);
-              }
-              if (pathname.endsWith("/index")) {
-                pathname = pathname.slice(0, -6);
-              }
-              var lowered = pathname.toLowerCase();
-              if (lowered !== pathname && index[lowered] != null) {
-                var prefix = hasBasePrefix ? basePath : "";
-                var target = prefix + (prefix.endsWith("/") ? "" : "/") + lowered;
-                window.location.replace(target);
-              }
-            });
+          const openSearch = () => {
+            const button = document.querySelector(".sidebar .search-button, .search-button")
+            if (button instanceof HTMLElement) button.click()
           }
+          document.querySelectorAll("[data-open-search]").forEach((button) => {
+            button.addEventListener("click", openSearch)
+          })
           `,
         }}
       />

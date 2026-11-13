@@ -6,6 +6,7 @@ import http from "isomorphic-git/http/node"
 import { styleText } from "util"
 import { fileURLToPath } from "node:url"
 import { pathToFileURL } from "url"
+import { symlinkOrCopySync } from "../../util/symlink"
 import { PluginSource } from "./types"
 
 /**
@@ -473,7 +474,7 @@ export async function installPlugin(
       console.log(styleText("cyan", `→`), `Linking ${spec.name} from ${spec.repo}...`)
     }
 
-    fs.symlinkSync(spec.repo, pluginDir, "dir")
+    symlinkOrCopySync(spec.repo, pluginDir)
 
     if (options.verbose) {
       console.log(styleText("green", `✓`), `Linked ${spec.name}`)

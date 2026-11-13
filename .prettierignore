@@ -1,3 +1,12 @@
 public
 node_modules
 .quartz-cache
+.quartz
+.tmp
+.playwright-mcp
+.opencode
+docs/design
+docs/evidence
+content
+test/fixtures
+quartz/static/fonts.css

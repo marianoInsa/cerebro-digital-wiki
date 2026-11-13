@@ -1,0 +1,18 @@
+{
+  "tool": "axe-core 4.14.0",
+  "tags": ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"],
+  "templates": [
+    "home",
+    "collection",
+    "subcollection",
+    "note",
+    "search",
+    "404",
+    "popover",
+    "drawer"
+  ],
+  "themes": ["light", "dark"],
+  "critical": 0,
+  "serious": 0,
+  "violations": []
+}
